@@ -1,6 +1,11 @@
+import OpenAI from "openai";
 import type { NormalizedMusicQuery, WorkType } from "./types";
 
-type OpenAINormalizerPayload = {
+const client = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
+
+type NormalizerPayload = {
   canonicalTitle: string;
   composer: string | null;
   workTitle: string | null;
@@ -11,70 +16,126 @@ type OpenAINormalizerPayload = {
   confidence: number;
   notes: string | null;
   ambiguity: string[];
+  searchIntents: string[];
 };
 
-const OPENAI_API_URL = "https://api.openai.com/v1/responses";
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4";
+const schema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    canonicalTitle: { type: "string" },
+    composer: { type: ["string", "null"] },
+    workTitle: { type: ["string", "null"] },
+    workType: {
+      type: "string",
+      enum: [
+        "aria",
+        "art_song",
+        "opera",
+        "oratorio",
+        "choral",
+        "instrumental",
+        "musical_theatre",
+        "piece",
+        "movement",
+        "unknown",
+      ],
+    },
+    language: { type: ["string", "null"] },
+    instrumentationOrVoice: { type: ["string", "null"] },
+    aliases: {
+      type: "array",
+      items: { type: "string" },
+    },
+    confidence: { type: "number" },
+    notes: { type: ["string", "null"] },
+    ambiguity: {
+      type: "array",
+      items: { type: "string" },
+    },
+    searchIntents: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: [
+    "canonicalTitle",
+    "composer",
+    "workTitle",
+    "workType",
+    "language",
+    "instrumentationOrVoice",
+    "aliases",
+    "confidence",
+    "notes",
+    "ambiguity",
+    "searchIntents",
+  ],
+} as const;
 
-const knownPieces: Array<{
+const knownWorks: Array<{
   match: RegExp;
-  normalized: Partial<NormalizedMusicQuery> & { canonicalTitle: string };
+  value: Partial<NormalizedMusicQuery> & { canonicalTitle: string };
 }> = [
   {
     match: /\bvedrai[, ]*carino\b/i,
-    normalized: {
+    value: {
       canonicalTitle: "Vedrai, carino",
       composer: "Wolfgang Amadeus Mozart",
       workTitle: "Don Giovanni",
       workType: "aria",
       language: "Italian",
       aliases: ["Vedrai carino"],
-      confidence: 0.96,
+      confidence: 0.97,
       notes: "Likely Zerlina aria from Don Giovanni.",
+      searchIntents: ["sheet music", "recordings", "youtube performance", "score video"],
     },
   },
   {
     match: /\bbatti[, ]*batti\b/i,
-    normalized: {
+    value: {
       canonicalTitle: "Batti, batti, o bel Masetto",
       composer: "Wolfgang Amadeus Mozart",
       workTitle: "Don Giovanni",
       workType: "aria",
       language: "Italian",
       aliases: ["Batti batti"],
-      confidence: 0.95,
+      confidence: 0.96,
       notes: "Likely Zerlina aria from Don Giovanni.",
+      searchIntents: ["sheet music", "recordings", "youtube performance"],
     },
   },
   {
     match: /\bo mio babbino caro\b/i,
-    normalized: {
+    value: {
       canonicalTitle: "O mio babbino caro",
       composer: "Giacomo Puccini",
       workTitle: "Gianni Schicchi",
       workType: "aria",
       language: "Italian",
       aliases: [],
-      confidence: 0.97,
+      confidence: 0.98,
       notes: "Common soprano aria from Gianni Schicchi.",
+      searchIntents: ["sheet music", "recordings", "youtube performance", "accompaniment"],
     },
   },
   {
     match: /\blascia ch['’]?(io)? pianga\b/i,
-    normalized: {
+    value: {
       canonicalTitle: "Lascia ch'io pianga",
       composer: "George Frideric Handel",
       workTitle: "Rinaldo",
       workType: "aria",
       language: "Italian",
       aliases: ["Lascia chio pianga", "Lascia ch’io pianga"],
-      confidence: 0.96,
+      confidence: 0.97,
       notes: "Famous aria from Handel’s Rinaldo.",
+      searchIntents: ["sheet music", "recordings", "youtube performance", "baroque interpretation"],
     },
   },
   {
     match: /\bave maria\b.*\bschubert\b|\bschubert\b.*\bave maria\b/i,
-    normalized: {
+    value: {
       canonicalTitle: "Ave Maria",
       composer: "Franz Schubert",
       workTitle: "Ellens Gesang III, D. 839",
@@ -84,31 +145,29 @@ const knownPieces: Array<{
       confidence: 0.9,
       notes: "Often searched by the popular title rather than the full catalog entry.",
       ambiguity: ["Could also refer to settings by Bach/Gounod or others if the query is incomplete."],
+      searchIntents: ["sheet music", "recordings", "youtube performance", "text and translation"],
     },
   },
 ];
 
 function toTitleCase(input: string): string {
   return input
+    .trim()
     .toLowerCase()
     .split(/\s+/)
-    .map((word) => {
-      if (!word) return word;
-      return word[0].toUpperCase() + word.slice(1);
-    })
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 }
 
 function extractVoiceType(query: string): string | undefined {
-  const match = query.match(
-    /\b(soprano|mezzo|mezzo-soprano|alto|contralto|tenor|baritone|bass|treble|countertenor|violin|cello|flute|clarinet|piano|guitar|choir|choral)\b/i
-  );
-  return match?.[1];
+  return query.match(
+    /\b(soprano|mezzo|mezzo-soprano|alto|contralto|tenor|baritone|bass|countertenor|treble|violin|viola|cello|flute|clarinet|oboe|piano|guitar|choir|choral)\b/i
+  )?.[1];
 }
 
 function extractLanguage(query: string): string | undefined {
-  const match = query.match(/\b(italian|german|french|english|latin|spanish)\b/i);
-  return match?.[1] ? toTitleCase(match[1]) : undefined;
+  const match = query.match(/\b(italian|german|french|english|latin|spanish)\b/i)?.[1];
+  return match ? toTitleCase(match) : undefined;
 }
 
 function inferWorkType(query: string): WorkType {
@@ -116,28 +175,29 @@ function inferWorkType(query: string): WorkType {
   if (/\bopera\b/i.test(query)) return "opera";
   if (/\boratorio\b/i.test(query)) return "oratorio";
   if (/\bchoral|choir|chorus\b/i.test(query)) return "choral";
-  if (/\bsong|lieder|lied\b/i.test(query)) return "art_song";
+  if (/\blied|lieder|art song|song\b/i.test(query)) return "art_song";
   if (/\bmovement\b/i.test(query)) return "movement";
+  if (/\bconcerto|sonata|suite|prelude|fugue|étude|etude|nocturne\b/i.test(query)) return "instrumental";
   return "unknown";
 }
 
-function heuristicNormalize(rawQuery: string): NormalizedMusicQuery {
+function fallbackNormalize(rawQuery: string): NormalizedMusicQuery {
   const cleaned = rawQuery.replace(/\s+/g, " ").trim();
-  const lower = cleaned.toLowerCase();
 
-  for (const entry of knownPieces) {
-    if (entry.match.test(lower)) {
+  for (const entry of knownWorks) {
+    if (entry.match.test(cleaned)) {
       return {
-        canonicalTitle: entry.normalized.canonicalTitle,
-        composer: entry.normalized.composer,
-        workTitle: entry.normalized.workTitle,
-        workType: entry.normalized.workType ?? "unknown",
-        language: entry.normalized.language,
+        canonicalTitle: entry.value.canonicalTitle,
+        composer: entry.value.composer,
+        workTitle: entry.value.workTitle,
+        workType: entry.value.workType ?? "unknown",
+        language: entry.value.language,
         instrumentationOrVoice: extractVoiceType(cleaned),
-        aliases: entry.normalized.aliases ?? [],
-        confidence: entry.normalized.confidence ?? 0.85,
-        notes: entry.normalized.notes,
-        ambiguity: entry.normalized.ambiguity ?? [],
+        aliases: entry.value.aliases ?? [],
+        confidence: entry.value.confidence ?? 0.8,
+        notes: entry.value.notes,
+        ambiguity: entry.value.ambiguity ?? [],
+        searchIntents: entry.value.searchIntents ?? [],
       };
     }
   }
@@ -150,21 +210,21 @@ function heuristicNormalize(rawQuery: string): NormalizedMusicQuery {
     language: extractLanguage(cleaned),
     instrumentationOrVoice: extractVoiceType(cleaned),
     aliases: [],
-    confidence: 0.55,
-    notes: "Heuristic normalization used because no exact canonical match was identified.",
+    confidence: 0.58,
+    notes: "Fallback normalization used. Query may need a composer, work title, or voice type for sharper results.",
     ambiguity: [],
+    searchIntents: ["sheet music", "recordings", "youtube performance"],
   };
 }
 
-function extractResponseText(data: any): string {
-  if (typeof data?.output_text === "string" && data.output_text.trim()) {
-    return data.output_text;
+function extractTextOutput(response: any): string {
+  if (typeof response?.output_text === "string" && response.output_text.trim()) {
+    return response.output_text;
   }
 
-  if (Array.isArray(data?.output)) {
-    for (const item of data.output) {
+  if (Array.isArray(response?.output)) {
+    for (const item of response.output) {
       if (!Array.isArray(item?.content)) continue;
-
       for (const content of item.content) {
         if (typeof content?.text === "string" && content.text.trim()) {
           return content.text;
@@ -173,7 +233,7 @@ function extractResponseText(data: any): string {
     }
   }
 
-  throw new Error("OpenAI response did not include structured text output.");
+  throw new Error("No structured output text found in OpenAI response.");
 }
 
 export async function normalizeMusicQuery(rawQuery: string): Promise<NormalizedMusicQuery> {
@@ -186,111 +246,52 @@ export async function normalizeMusicQuery(rawQuery: string): Promise<NormalizedM
       aliases: [],
       confidence: 0,
       ambiguity: [],
+      searchIntents: [],
     };
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    return heuristicNormalize(trimmed);
+  if (!client) {
+    return fallbackNormalize(trimmed);
   }
 
-  const schema = {
-    type: "object",
-    additionalProperties: false,
-    properties: {
-      canonicalTitle: { type: "string" },
-      composer: { type: ["string", "null"] },
-      workTitle: { type: ["string", "null"] },
-      workType: {
-        type: "string",
-        enum: [
-          "aria",
-          "art_song",
-          "opera",
-          "oratorio",
-          "choral",
-          "instrumental",
-          "musical_theatre",
-          "piece",
-          "movement",
-          "unknown",
-        ],
-      },
-      language: { type: ["string", "null"] },
-      instrumentationOrVoice: { type: ["string", "null"] },
-      aliases: {
-        type: "array",
-        items: { type: "string" },
-      },
-      confidence: { type: "number" },
-      notes: { type: ["string", "null"] },
-      ambiguity: {
-        type: "array",
-        items: { type: "string" },
-      },
-    },
-    required: [
-      "canonicalTitle",
-      "composer",
-      "workTitle",
-      "workType",
-      "language",
-      "instrumentationOrVoice",
-      "aliases",
-      "confidence",
-      "notes",
-      "ambiguity",
-    ],
-  };
-
   try {
-    const response = await fetch(OPENAI_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        input: [
-          {
-            role: "system",
-            content: [
-              {
-                type: "input_text",
-                text: [
-                  "You are a professional music librarian and repertoire specialist.",
-                  "Normalize messy user music searches into canonical structured data.",
-                  "Prefer precision over creativity.",
-                  "For arias, use the aria title as canonicalTitle and the opera title as workTitle.",
-                  "If the query is partial or ambiguous, still provide the best likely normalization and note ambiguity.",
-                  "Do not invent links, recordings, editions, or publishers.",
-                ].join(" "),
-              },
-            ],
-          },
-          {
-            role: "user",
-            content: [{ type: "input_text", text: trimmed }],
-          },
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "music_query_normalization",
-            strict: true,
-            schema,
-          },
+    const response = await client.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.4",
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                "You are a professional music librarian and repertoire specialist.",
+                "Normalize messy music searches into canonical structured data.",
+                "Identify likely aria titles, parent works, composers, language, work type, and voice/instrument intent.",
+                "Prefer precision over creativity.",
+                "If ambiguous, provide the best likely answer and explain ambiguity.",
+                "Do not invent editions, URLs, recordings, or publishers.",
+                "For arias, use the aria title as canonicalTitle and the opera title as workTitle.",
+                "Also generate searchIntents that would help a musician, teacher, or student find useful materials.",
+              ].join(" "),
+            },
+          ],
         },
-      }),
+        {
+          role: "user",
+          content: [{ type: "input_text", text: trimmed }],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "music_query_normalization",
+          strict: true,
+          schema,
+        },
+      },
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenAI normalization failed: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    const parsed = JSON.parse(extractResponseText(data)) as OpenAINormalizerPayload;
+    const parsed = JSON.parse(extractTextOutput(response)) as NormalizerPayload;
 
     return {
       canonicalTitle: parsed.canonicalTitle?.trim() || toTitleCase(trimmed),
@@ -303,12 +304,13 @@ export async function normalizeMusicQuery(rawQuery: string): Promise<NormalizedM
       confidence:
         typeof parsed.confidence === "number"
           ? Math.max(0, Math.min(1, parsed.confidence))
-          : 0.7,
+          : 0.75,
       notes: parsed.notes || undefined,
       ambiguity: Array.isArray(parsed.ambiguity) ? parsed.ambiguity : [],
+      searchIntents: Array.isArray(parsed.searchIntents) ? parsed.searchIntents : [],
     };
   } catch (error) {
-    console.error("OpenAI normalization failed, falling back to heuristic normalizer:", error);
-    return heuristicNormalize(trimmed);
+    console.error("OpenAI music normalization failed, using fallback:", error);
+    return fallbackNormalize(trimmed);
   }
 }
