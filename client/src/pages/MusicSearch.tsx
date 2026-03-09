@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import RepertoireSuggestions from "../components/music-search/RepertoireSuggestions";
 import ResultsSection from "../components/music-search/ResultsSection";
 import TopMatchCard from "../components/music-search/TopMatchCard";
@@ -20,6 +21,8 @@ const starterQueries = [
 const ASSIGNMENT_DRAFT_STORAGE_KEY = "practiceroom.assignmentDraft.repertoire";
 
 export default function MusicSearch() {
+  const navigate = useNavigate();
+
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,9 +63,9 @@ export default function MusicSearch() {
       JSON.stringify(assignmentSeed)
     );
 
-    setAssignmentMessage(
-      `Saved "${suggestion.title}" for assignment creation.`
-    );
+    setAssignmentMessage(`Saved "${suggestion.title}" for assignment creation.`);
+
+    navigate("/assign");
   }
 
   return (
