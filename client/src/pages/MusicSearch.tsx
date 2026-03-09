@@ -2,7 +2,11 @@ import { useMemo, useState } from "react";
 import RepertoireSuggestions from "../components/music-search/RepertoireSuggestions";
 import ResultsSection from "../components/music-search/ResultsSection";
 import TopMatchCard from "../components/music-search/TopMatchCard";
-import { searchMusic, type MusicSearchResponse } from "../lib/api/musicSearch";
+import {
+  searchMusic,
+  type MusicSearchResponse,
+  type RepertoireSuggestion,
+} from "../lib/api/musicSearch";
 
 const starterQueries = [
   "Vedrai carino Mozart",
@@ -13,11 +17,14 @@ const starterQueries = [
   "Italian beginner art song",
 ];
 
+const ASSIGNMENT_DRAFT_STORAGE_KEY = "practiceroom.assignmentDraft.repertoire";
+
 export default function MusicSearch() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<MusicSearchResponse | null>(null);
+  const [assignmentMessage, setAssignmentMessage] = useState<string | null>(null);
 
   const canSearch = useMemo(() => query.trim().length > 0, [query]);
 
@@ -28,6 +35,7 @@ export default function MusicSearch() {
     try {
       setLoading(true);
       setError(null);
+      setAssignmentMessage(null);
 
       const data = await searchMusic(nextQuery);
 
@@ -38,6 +46,23 @@ export default function MusicSearch() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleUseForAssignment(suggestion: RepertoireSuggestion) {
+    const assignmentSeed = {
+      source: "music-search",
+      savedAt: new Date().toISOString(),
+      repertoire: suggestion,
+    };
+
+    localStorage.setItem(
+      ASSIGNMENT_DRAFT_STORAGE_KEY,
+      JSON.stringify(assignmentSeed)
+    );
+
+    setAssignmentMessage(
+      `Saved "${suggestion.title}" for assignment creation.`
+    );
   }
 
   return (
@@ -104,6 +129,12 @@ export default function MusicSearch() {
           </div>
         )}
 
+        {assignmentMessage && (
+          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+            {assignmentMessage}
+          </div>
+        )}
+
         {loading && (
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
             Searching repertoire databases and recordings…
@@ -117,6 +148,7 @@ export default function MusicSearch() {
             <RepertoireSuggestions
               suggestions={results.suggestions}
               onSelectSuggestion={(suggestionQuery) => void handleSearch(suggestionQuery)}
+              onUseForAssignment={handleUseForAssignment}
             />
 
             <div className="grid gap-6 xl:grid-cols-3">
