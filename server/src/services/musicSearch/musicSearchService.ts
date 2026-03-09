@@ -1,3 +1,4 @@
+import { musicSearchResponseSchema } from "./schemas";
 import { musicSearchProviders } from "./providerRegistry";
 import { normalizeMusicQuery } from "./openaiMusicNormalizer";
 import type { MusicLinkResult, MusicSearchResponse } from "./types";
