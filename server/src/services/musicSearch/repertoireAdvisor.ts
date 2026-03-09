@@ -1,293 +1,212 @@
-import type { RepertoireSuggestion, WorkType } from "./types";
+import OpenAI from "openai";
+import { repertoireCatalog, toSuggestion, type CatalogEntry } from "./repertoireCatalog";
+import type { NormalizedMusicQuery, RepertoireSuggestion } from "./types";
 
-export interface CatalogEntry {
-  title: string;
-  composer: string;
-  workTitle?: string;
-  workType: WorkType;
-  language?: string;
-  voiceType?: string;
-  era?: string;
-  difficulty?: "beginner" | "intermediate" | "advanced";
-  tags: string[];
+const client = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
+
+function textBlob(normalized: NormalizedMusicQuery, rawQuery: string): string {
+  return [
+    rawQuery,
+    normalized.canonicalTitle,
+    normalized.composer,
+    normalized.workTitle,
+    normalized.workType,
+    normalized.language,
+    normalized.instrumentationOrVoice,
+    ...(normalized.aliases || []),
+    ...(normalized.searchIntents || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 }
 
-export const repertoireCatalog: CatalogEntry[] = [
-  {
-    title: "Vedrai, carino",
-    composer: "Wolfgang Amadeus Mozart",
-    workTitle: "Don Giovanni",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "soprano",
-    era: "Classical",
-    difficulty: "intermediate",
-    tags: ["mozart", "soprano", "italian", "aria", "classical", "zerlina", "lyric"],
-  },
-  {
-    title: "Batti, batti, o bel Masetto",
-    composer: "Wolfgang Amadeus Mozart",
-    workTitle: "Don Giovanni",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "soprano",
-    era: "Classical",
-    difficulty: "intermediate",
-    tags: ["mozart", "soprano", "italian", "aria", "classical", "zerlina"],
-  },
-  {
-    title: "Deh vieni, non tardar",
-    composer: "Wolfgang Amadeus Mozart",
-    workTitle: "Le nozze di Figaro",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "soprano",
-    era: "Classical",
-    difficulty: "intermediate",
-    tags: ["mozart", "soprano", "italian", "aria", "classical", "figaro", "susanna"],
-  },
-  {
-    title: "Porgi, amor",
-    composer: "Wolfgang Amadeus Mozart",
-    workTitle: "Le nozze di Figaro",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "soprano",
-    era: "Classical",
-    difficulty: "advanced",
-    tags: ["mozart", "soprano", "italian", "aria", "classical", "countess"],
-  },
-  {
-    title: "Dove sono",
-    composer: "Wolfgang Amadeus Mozart",
-    workTitle: "Le nozze di Figaro",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "soprano",
-    era: "Classical",
-    difficulty: "advanced",
-    tags: ["mozart", "soprano", "italian", "aria", "classical", "countess"],
-  },
-  {
-    title: "Voi che sapete",
-    composer: "Wolfgang Amadeus Mozart",
-    workTitle: "Le nozze di Figaro",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "mezzo",
-    era: "Classical",
-    difficulty: "intermediate",
-    tags: ["mozart", "mezzo", "italian", "aria", "classical", "cherubino"],
-  },
-  {
-    title: "Non so più cosa son",
-    composer: "Wolfgang Amadeus Mozart",
-    workTitle: "Le nozze di Figaro",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "mezzo",
-    era: "Classical",
-    difficulty: "intermediate",
-    tags: ["mozart", "mezzo", "italian", "aria", "classical", "cherubino"],
-  },
-  {
-    title: "Ruhe sanft",
-    composer: "Wolfgang Amadeus Mozart",
-    workTitle: "Zaide",
-    workType: "aria",
-    language: "German",
-    voiceType: "soprano",
-    era: "Classical",
-    difficulty: "intermediate",
-    tags: ["mozart", "soprano", "german", "aria", "classical"],
-  },
-  {
-    title: "O mio babbino caro",
-    composer: "Giacomo Puccini",
-    workTitle: "Gianni Schicchi",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "soprano",
-    era: "Romantic",
-    difficulty: "intermediate",
-    tags: ["puccini", "soprano", "italian", "aria", "romantic"],
-  },
-  {
-    title: "Quando m'en vo'",
-    composer: "Giacomo Puccini",
-    workTitle: "La bohème",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "soprano",
-    era: "Romantic",
-    difficulty: "intermediate",
-    tags: ["puccini", "soprano", "italian", "aria", "romantic", "musetta"],
-  },
-  {
-    title: "Si, mi chiamano Mimì",
-    composer: "Giacomo Puccini",
-    workTitle: "La bohème",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "soprano",
-    era: "Romantic",
-    difficulty: "advanced",
-    tags: ["puccini", "soprano", "italian", "aria", "romantic", "mimi"],
-  },
-  {
-    title: "Che gelida manina",
-    composer: "Giacomo Puccini",
-    workTitle: "La bohème",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "tenor",
-    era: "Romantic",
-    difficulty: "advanced",
-    tags: ["puccini", "tenor", "italian", "aria", "romantic", "rodolfo"],
-  },
-  {
-    title: "Nessun dorma",
-    composer: "Giacomo Puccini",
-    workTitle: "Turandot",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "tenor",
-    era: "Romantic",
-    difficulty: "advanced",
-    tags: ["puccini", "tenor", "italian", "aria", "romantic"],
-  },
-  {
-    title: "Lascia ch'io pianga",
-    composer: "George Frideric Handel",
-    workTitle: "Rinaldo",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "soprano",
-    era: "Baroque",
-    difficulty: "intermediate",
-    tags: ["handel", "soprano", "italian", "aria", "baroque"],
-  },
-  {
-    title: "Ombra mai fu",
-    composer: "George Frideric Handel",
-    workTitle: "Serse",
-    workType: "aria",
-    language: "Italian",
-    voiceType: "baritone",
-    era: "Baroque",
-    difficulty: "intermediate",
-    tags: ["handel", "baritone", "italian", "aria", "baroque"],
-  },
-  {
-    title: "Where'er You Walk",
-    composer: "George Frideric Handel",
-    workTitle: "Semele",
-    workType: "aria",
-    language: "English",
-    voiceType: "tenor",
-    era: "Baroque",
-    difficulty: "intermediate",
-    tags: ["handel", "tenor", "english", "aria", "baroque"],
-  },
-  {
-    title: "Caro mio ben",
-    composer: "Tommaso Giordani",
-    workType: "art_song",
-    language: "Italian",
-    voiceType: "high voice",
-    era: "Classical",
-    difficulty: "beginner",
-    tags: ["italian", "art song", "beginner", "high voice", "standard rep"],
-  },
-  {
-    title: "Sebben, crudele",
-    composer: "Antonio Caldara",
-    workType: "art_song",
-    language: "Italian",
-    voiceType: "medium voice",
-    era: "Baroque",
-    difficulty: "beginner",
-    tags: ["italian", "art song", "baroque", "beginner", "medium voice"],
-  },
-  {
-    title: "Amarilli, mia bella",
-    composer: "Giulio Caccini",
-    workType: "art_song",
-    language: "Italian",
-    voiceType: "medium voice",
-    era: "Baroque",
-    difficulty: "beginner",
-    tags: ["italian", "art song", "baroque", "beginner", "medium voice"],
-  },
-  {
-    title: "Vaghissima sembianza",
-    composer: "Stefano Donaudy",
-    workType: "art_song",
-    language: "Italian",
-    voiceType: "high voice",
-    era: "Romantic",
-    difficulty: "intermediate",
-    tags: ["italian", "art song", "high voice", "intermediate"],
-  },
-  {
-    title: "Caro mio ben",
-    composer: "Tommaso Giordani",
-    workType: "art_song",
-    language: "Italian",
-    voiceType: "low voice",
-    era: "Classical",
-    difficulty: "beginner",
-    tags: ["italian", "art song", "beginner", "low voice"],
-  },
-  {
-    title: "An die Musik",
-    composer: "Franz Schubert",
-    workType: "art_song",
-    language: "German",
-    voiceType: "medium voice",
-    era: "Romantic",
-    difficulty: "intermediate",
-    tags: ["schubert", "german", "lied", "art song", "medium voice"],
-  },
-  {
-    title: "Du bist die Ruh",
-    composer: "Franz Schubert",
-    workType: "art_song",
-    language: "German",
-    voiceType: "medium voice",
-    era: "Romantic",
-    difficulty: "advanced",
-    tags: ["schubert", "german", "lied", "art song", "medium voice"],
-  },
-  {
-    title: "Ave Maria",
-    composer: "Franz Schubert",
-    workTitle: "Ellens Gesang III, D. 839",
-    workType: "art_song",
-    language: "German",
-    voiceType: "high voice",
-    era: "Romantic",
-    difficulty: "intermediate",
-    tags: ["schubert", "german", "lied", "art song", "high voice"],
-  },
-];
+function scoreCatalogEntry(entry: CatalogEntry, normalized: NormalizedMusicQuery, rawQuery: string): number {
+  const blob = textBlob(normalized, rawQuery);
+  let score = 0;
 
-export function toSuggestion(
-  entry: CatalogEntry,
-  reason: string,
-  confidence: number
-): RepertoireSuggestion {
-  return {
-    title: entry.title,
-    composer: entry.composer,
-    workTitle: entry.workTitle,
-    workType: entry.workType,
-    language: entry.language,
-    voiceType: entry.voiceType,
-    era: entry.era,
-    difficulty: entry.difficulty,
-    reason,
-    confidence,
-    searchQuery: [entry.title, entry.composer, entry.voiceType].filter(Boolean).join(" "),
-  };
+  if (normalized.composer && entry.composer.toLowerCase().includes(normalized.composer.toLowerCase())) {
+    score += 5;
+  }
+
+  if (blob.includes(entry.title.toLowerCase())) {
+    score += 8;
+  }
+
+  if (entry.workTitle && normalized.workTitle && entry.workTitle.toLowerCase().includes(normalized.workTitle.toLowerCase())) {
+    score += 4;
+  }
+
+  if (normalized.workType !== "unknown" && entry.workType === normalized.workType) {
+    score += 3;
+  }
+
+  if (
+    normalized.instrumentationOrVoice &&
+    entry.voiceType &&
+    entry.voiceType.toLowerCase().includes(normalized.instrumentationOrVoice.toLowerCase())
+  ) {
+    score += 4;
+  }
+
+  if (normalized.language && entry.language?.toLowerCase() === normalized.language.toLowerCase()) {
+    score += 2;
+  }
+
+  for (const tag of entry.tags) {
+    if (blob.includes(tag.toLowerCase())) {
+      score += 1.5;
+    }
+  }
+
+  if (/beginner/.test(blob) && entry.difficulty === "beginner") score += 3;
+  if (/intermediate/.test(blob) && entry.difficulty === "intermediate") score += 3;
+  if (/advanced/.test(blob) && entry.difficulty === "advanced") score += 3;
+
+  if (/baroque/.test(blob) && entry.era === "Baroque") score += 2;
+  if (/classical/.test(blob) && entry.era === "Classical") score += 2;
+  if (/romantic/.test(blob) && entry.era === "Romantic") score += 2;
+
+  return score;
+}
+
+function heuristicSuggestions(
+  rawQuery: string,
+  normalized: NormalizedMusicQuery,
+  limit = 5
+): RepertoireSuggestion[] {
+  const scored = repertoireCatalog
+    .map((entry) => ({
+      entry,
+      score: scoreCatalogEntry(entry, normalized, rawQuery),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+
+  return scored.map(({ entry, score }) =>
+    toSuggestion(
+      entry,
+      `Suggested because it matches the query’s likely composer, voice type, style, or repertoire intent.`,
+      Math.min(0.95, 0.55 + score / 20)
+    )
+  );
+}
+
+export async function adviseRepertoire(
+  rawQuery: string,
+  normalized: NormalizedMusicQuery
+): Promise<RepertoireSuggestion[]> {
+  const heuristic = heuristicSuggestions(rawQuery, normalized, 8);
+
+  if (!client) {
+    return heuristic.slice(0, 5);
+  }
+
+  try {
+    const response = await client.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.4",
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                "You are an expert vocal and classical repertoire advisor.",
+                "Given a normalized search and a candidate repertoire catalog, choose the best repertoire matches.",
+                "Prefer pedagogically useful, musically plausible suggestions.",
+                "Return only strict JSON.",
+              ].join(" "),
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: JSON.stringify({
+                rawQuery,
+                normalized,
+                candidates: heuristic,
+              }),
+            },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "repertoire_advice",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              suggestions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    title: { type: "string" },
+                    composer: { type: "string" },
+                    workTitle: { type: ["string", "null"] },
+                    workType: { type: "string" },
+                    language: { type: ["string", "null"] },
+                    voiceType: { type: ["string", "null"] },
+                    era: { type: ["string", "null"] },
+                    difficulty: { type: ["string", "null"] },
+                    reason: { type: "string" },
+                    confidence: { type: "number" },
+                    searchQuery: { type: "string" },
+                  },
+                  required: [
+                    "title",
+                    "composer",
+                    "workTitle",
+                    "workType",
+                    "language",
+                    "voiceType",
+                    "era",
+                    "difficulty",
+                    "reason",
+                    "confidence",
+                    "searchQuery",
+                  ],
+                },
+              },
+            },
+            required: ["suggestions"],
+          },
+        },
+      },
+    });
+
+    const text =
+      typeof response.output_text === "string" && response.output_text.trim()
+        ? response.output_text
+        : "";
+
+    if (!text) {
+      return heuristic.slice(0, 5);
+    }
+
+    const parsed = JSON.parse(text) as { suggestions?: RepertoireSuggestion[] };
+
+    if (!Array.isArray(parsed.suggestions) || parsed.suggestions.length === 0) {
+      return heuristic.slice(0, 5);
+    }
+
+    return parsed.suggestions.slice(0, 5).map((item) => ({
+      ...item,
+      confidence: Math.max(0, Math.min(1, item.confidence ?? 0.75)),
+    }));
+  } catch (error) {
+    console.error("Repertoire advisor failed, using heuristic suggestions:", error);
+    return heuristic.slice(0, 5);
+  }
 }
