@@ -1,3 +1,3 @@
-export default function TopMatchCard() {
-  return <div>Top Match</div>;
-}
+import musicSearchRouter from "./routes/musicSearch";
+
+app.use("/api/music-search", musicSearchRouter);
