@@ -8,6 +8,8 @@ const starterQueries = [
   "O mio babbino caro soprano",
   "Lascia ch'io pianga Handel",
   "Ave Maria Schubert",
+  "Mozart soprano aria",
+  "Puccini tenor aria",
 ];
 
 export default function MusicSearch() {
@@ -25,7 +27,9 @@ export default function MusicSearch() {
     try {
       setLoading(true);
       setError(null);
+
       const data = await searchMusic(nextQuery);
+
       setResults(data);
       setQuery(nextQuery);
     } catch (err) {
@@ -38,23 +42,25 @@ export default function MusicSearch() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mb-8">
+        {/* Header */}
+        <div className="mb-10">
           <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-sm">
-            PracticeRoom Music Search
+            PracticeRoom Repertoire Search
           </div>
 
           <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
-            Find sheet music, recordings, and videos like a music librarian.
+            Discover repertoire, scores, and recordings
           </h1>
 
           <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-            Search by aria title, lyric fragment, composer, voice type, or partial work name.
-            PracticeRoom will normalize the query and return curated discovery paths for study,
-            teaching, and assignment building.
+            Search by aria title, lyric fragment, composer, voice type, or work name.
+            PracticeRoom interprets the query like a music librarian and returns curated
+            resources for learning, teaching, and assignment building.
           </p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        {/* Search Box */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -75,10 +81,11 @@ export default function MusicSearch() {
               disabled={!canSearch || loading}
               className="rounded-2xl bg-slate-900 px-5 py-3 font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Searching..." : "Search"}
+              {loading ? "Searching…" : "Search"}
             </button>
           </form>
 
+          {/* Starter suggestions */}
           <div className="mt-4 flex flex-wrap gap-2">
             {starterQueries.map((item) => (
               <button
@@ -93,37 +100,54 @@ export default function MusicSearch() {
           </div>
         </div>
 
+        {/* Error */}
         {error && (
           <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
             {error}
           </div>
         )}
 
-        {results && (
-          <div className="mt-8 space-y-6">
+        {/* Loading state */}
+        {loading && (
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
+            Searching repertoire databases and recordings…
+          </div>
+        )}
+
+        {/* Results */}
+        {results && !loading && (
+          <div className="mt-10 space-y-8">
+            {/* Top match */}
             <TopMatchCard normalized={results.normalized} />
 
+            {/* Resource sections */}
             <div className="grid gap-6 xl:grid-cols-3">
               <ResultsSection
                 title="Sheet Music"
                 description="Public-domain and commercial score sources."
                 items={results.sheetMusic}
               />
+
               <ResultsSection
                 title="Recordings"
-                description="Streaming and general discovery links for recordings."
+                description="Streaming and curated recording discovery."
                 items={results.recordings}
               />
+
               <ResultsSection
                 title="Videos"
-                description="Performance, score-follow, and rehearsal-oriented YouTube searches."
+                description="Performance videos, score-follow, and rehearsal tracks."
                 items={results.videos}
               />
             </div>
 
+            {/* Related searches */}
             {results.relatedSearches.length > 0 && (
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-3 text-lg font-semibold text-slate-900">Related Searches</div>
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-3 text-lg font-semibold text-slate-900">
+                  Explore further
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   {results.relatedSearches.map((item) => (
                     <button
@@ -138,6 +162,13 @@ export default function MusicSearch() {
                 </div>
               </section>
             )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!results && !loading && (
+          <div className="mt-10 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+            Search for a piece to discover sheet music, recordings, and study materials.
           </div>
         )}
       </div>
