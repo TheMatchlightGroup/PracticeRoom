@@ -24,6 +24,7 @@ export interface NormalizedMusicQuery {
   confidence: number;
   notes?: string;
   ambiguity?: string[];
+  searchIntents?: string[];
 }
 
 export interface MusicLinkResult {
@@ -35,6 +36,7 @@ export interface MusicLinkResult {
   category: ResultCategory;
   notes?: string;
   score?: number;
+  tags?: string[];
 }
 
 export interface MusicSearchResponse {
