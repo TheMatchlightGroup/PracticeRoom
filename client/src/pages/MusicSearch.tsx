@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import RepertoireSuggestions from "../components/music-search/RepertoireSuggestions";
 import ResultsSection from "../components/music-search/ResultsSection";
 import TopMatchCard from "../components/music-search/TopMatchCard";
 import { searchMusic, type MusicSearchResponse } from "../lib/api/musicSearch";
@@ -9,7 +10,7 @@ const starterQueries = [
   "Lascia ch'io pianga Handel",
   "Ave Maria Schubert",
   "Mozart soprano aria",
-  "Puccini tenor aria",
+  "Italian beginner art song",
 ];
 
 export default function MusicSearch() {
@@ -42,7 +43,6 @@ export default function MusicSearch() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-10">
           <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-sm">
             PracticeRoom Repertoire Search
@@ -59,7 +59,6 @@ export default function MusicSearch() {
           </p>
         </div>
 
-        {/* Search Box */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <form
             onSubmit={(e) => {
@@ -85,7 +84,6 @@ export default function MusicSearch() {
             </button>
           </form>
 
-          {/* Starter suggestions */}
           <div className="mt-4 flex flex-wrap gap-2">
             {starterQueries.map((item) => (
               <button
@@ -100,27 +98,27 @@ export default function MusicSearch() {
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
             {error}
           </div>
         )}
 
-        {/* Loading state */}
         {loading && (
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
             Searching repertoire databases and recordings…
           </div>
         )}
 
-        {/* Results */}
         {results && !loading && (
           <div className="mt-10 space-y-8">
-            {/* Top match */}
             <TopMatchCard normalized={results.normalized} />
 
-            {/* Resource sections */}
+            <RepertoireSuggestions
+              suggestions={results.suggestions}
+              onSelectSuggestion={(suggestionQuery) => void handleSearch(suggestionQuery)}
+            />
+
             <div className="grid gap-6 xl:grid-cols-3">
               <ResultsSection
                 title="Sheet Music"
@@ -141,7 +139,6 @@ export default function MusicSearch() {
               />
             </div>
 
-            {/* Related searches */}
             {results.relatedSearches.length > 0 && (
               <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-3 text-lg font-semibold text-slate-900">
@@ -165,10 +162,9 @@ export default function MusicSearch() {
           </div>
         )}
 
-        {/* Empty state */}
         {!results && !loading && (
           <div className="mt-10 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-            Search for a piece to discover sheet music, recordings, and study materials.
+            Search for a piece to discover sheet music, recordings, study materials, and likely repertoire matches.
           </div>
         )}
       </div>
