@@ -39,9 +39,24 @@ export interface MusicLinkResult {
   tags?: string[];
 }
 
+export interface RepertoireSuggestion {
+  title: string;
+  composer: string;
+  workTitle?: string;
+  workType: WorkType;
+  language?: string;
+  voiceType?: string;
+  era?: string;
+  difficulty?: "beginner" | "intermediate" | "advanced";
+  reason: string;
+  confidence: number;
+  searchQuery: string;
+}
+
 export interface MusicSearchResponse {
   query: string;
   normalized: NormalizedMusicQuery;
+  suggestions: RepertoireSuggestion[];
   sheetMusic: MusicLinkResult[];
   recordings: MusicLinkResult[];
   videos: MusicLinkResult[];
