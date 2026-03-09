@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # Express backend with Vite SPA
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_PRICE_STUDENT_BEGINNER_MONTHLY: ${STRIPE_PRICE_STUDENT_BEGINNER_MONTHLY}
+      STRIPE_PRICE_STUDENT_BEGINNER_ANNUAL: ${STRIPE_PRICE_STUDENT_BEGINNER_ANNUAL}
+      STRIPE_PRICE_STUDENT_INTERMEDIATE_MONTHLY: ${STRIPE_PRICE_STUDENT_INTERMEDIATE_MONTHLY}
+      STRIPE_PRICE_STUDENT_INTERMEDIATE_ANNUAL: ${STRIPE_PRICE_STUDENT_INTERMEDIATE_ANNUAL}
+      STRIPE_PRICE_STUDENT_ADVANCED_MONTHLY: ${STRIPE_PRICE_STUDENT_ADVANCED_MONTHLY}
+      STRIPE_PRICE_STUDENT_ADVANCED_ANNUAL: ${STRIPE_PRICE_STUDENT_ADVANCED_ANNUAL}
+      STRIPE_PRICE_TEACHER_STUDIO_MONTHLY: ${STRIPE_PRICE_TEACHER_STUDIO_MONTHLY}
+      STRIPE_PRICE_TEACHER_STUDIO_ANNUAL: ${STRIPE_PRICE_TEACHER_STUDIO_ANNUAL}
+      STRIPE_PRICE_TEACHER_PRO_MONTHLY: ${STRIPE_PRICE_TEACHER_PRO_MONTHLY}
+      STRIPE_PRICE_TEACHER_PRO_ANNUAL: ${STRIPE_PRICE_TEACHER_PRO_ANNUAL}
+      STRIPE_PRICE_TEACHER_ELITE_MONTHLY: ${STRIPE_PRICE_TEACHER_ELITE_MONTHLY}
+      STRIPE_PRICE_TEACHER_ELITE_ANNUAL: ${STRIPE_PRICE_TEACHER_ELITE_ANNUAL}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      MUSIC_ANALYSIS_URL: http://music-analysis:8001
+    depends_on:
+      music-analysis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - vocalstudynet
+    volumes:
+      - ./server:/app/server
+      - ./client:/app/client
+      - ./shared:/app/shared
+
+  # Python FastAPI music analysis service
+  music-analysis:
+    build:
+      context: ./services/music-analysis
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - vocalstudynet
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+networks:
+  vocalstudynet:
+    driver: bridge
+
+# Usage:
+# 
+# 1. Create .env file with required variables:
+#    cp .env.example .env
+#
+# 2. Start services:
+#    docker-compose up -d
+#
+# 3. View logs:
+#    docker-compose logs -f server
+#    docker-compose logs -f music-analysis
+#
+# 4. Stop services:
+#    docker-compose down
+#
+# 5. Rebuild after code changes:
+#    docker-compose up -d --build
