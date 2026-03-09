@@ -24,6 +24,21 @@ export interface NormalizedMusicQuery {
   confidence: number;
   notes?: string;
   ambiguity?: string[];
+  searchIntents?: string[];
+}
+
+export interface RepertoireSuggestion {
+  title: string;
+  composer: string;
+  workTitle?: string;
+  workType: WorkType;
+  language?: string;
+  voiceType?: string;
+  era?: string;
+  difficulty?: "beginner" | "intermediate" | "advanced";
+  reason: string;
+  confidence: number;
+  searchQuery: string;
 }
 
 export interface MusicLinkResult {
@@ -35,11 +50,13 @@ export interface MusicLinkResult {
   category: ResultCategory;
   notes?: string;
   score?: number;
+  tags?: string[];
 }
 
 export interface MusicSearchResponse {
   query: string;
   normalized: NormalizedMusicQuery;
+  suggestions: RepertoireSuggestion[];
   sheetMusic: MusicLinkResult[];
   recordings: MusicLinkResult[];
   videos: MusicLinkResult[];
@@ -63,7 +80,7 @@ export async function searchMusic(query: string): Promise<MusicSearchResponse> {
         message = data.error;
       }
     } catch {
-      // ignore JSON parse errors and keep fallback message
+      // keep fallback
     }
     throw new Error(message);
   }
