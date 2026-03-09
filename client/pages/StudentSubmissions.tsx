@@ -26,72 +26,64 @@ export default function StudentSubmissions() {
     });
 
   const handleSubmit = async () => {
-  setLoading(true);
-  setErrorMessage("");
-  setResultMessage("");
+    setLoading(true);
+    setErrorMessage("");
+    setResultMessage("");
 
-  try {
-    if (!file) {
-      throw new Error("Please choose an audio file.");
-    }
-
-    if (category === "piece" && !pieceId.trim()) {
-      throw new Error("Piece ID is required for piece submissions.");
-    }
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    const token = session?.access_token;
-    if (!token) {
-      throw new Error("You are not logged in.");
-    }
-
-    const audioData = await fileToBase64(file);
-
-    const response = await fetch("/api/submissions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        audioData,
-        audioSize: file.size,
-        mimeType: file.type || "audio/webm",
-        category,
-        pieceId: category === "piece" ? pieceId : undefined,
-      }),
-    });
-
-    const responseText = await response.text();
-
-    let data: any = null;
     try {
-      data = JSON.parse(responseText);
-    } catch {
-      data = null;
-    }
+      if (!file) {
+        throw new Error("Please choose an audio file.");
+      }
 
-    if (!response.ok) {
-      throw new Error(
-        data?.error || `Submission failed (${response.status} ${response.statusText})`
-      );
-    }
+      if (category === "piece" && !pieceId.trim()) {
+        throw new Error("Piece ID is required for piece submissions.");
+      }
 
-    setResultMessage("Audio submission uploaded successfully.");
-    setFile(null);
-    setPieceId("");
-    const input = document.getElementById("audio-file-input") as HTMLInputElement | null;
-    if (input) input.value = "";
-  } catch (error: any) {
-    console.error("Student submission error:", error);
-    setErrorMessage(error.message || "Something went wrong.");
-  } finally {
-    setLoading(false);
-  }
-};
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const token = session?.access_token;
+      if (!token) {
+        throw new Error("You are not logged in.");
+      }
+
+      const audioData = await fileToBase64(file);
+
+      const response = await fetch("/api/submissions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          audioData,
+          audioSize: file.size,
+          mimeType: file.type || "audio/webm",
+          category,
+          pieceId: category === "piece" ? pieceId : undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to submit audio.");
+      }
+
+      setResultMessage("Audio submission uploaded successfully.");
+      setFile(null);
+      setPieceId("");
+      const input = document.getElementById("audio-file-input") as HTMLInputElement | null;
+      if (input) input.value = "";
+    } catch (error: any) {
+      console.error("Student submission error:", error);
+      setErrorMessage(error.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <Navigation />
