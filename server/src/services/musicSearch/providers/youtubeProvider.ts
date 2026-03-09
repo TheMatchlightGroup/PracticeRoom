@@ -19,35 +19,39 @@ export async function getYoutubeResults(
     normalized.instrumentationOrVoice,
   ]);
 
-  const searches = [
+  return [
     {
       title: "Performance videos",
-      query: compact([base, "performance"]),
-      notes: "Live or studio performances of the work.",
+      subtitle: compact([base, "performance"]),
+      source: "YouTube",
+      url: `https://www.youtube.com/results?search_query=${enc(compact([base, "performance"]))}`,
+      access: "free",
+      category: "video",
+      notes: "Live and studio performances of the work.",
       score: 0.98,
+      tags: ["performance", "study"],
     },
     {
       title: "Score-follow videos",
-      query: compact([base, "score"]),
-      notes: "Useful for following the music while listening.",
+      subtitle: compact([base, "score"]),
+      source: "YouTube",
+      url: `https://www.youtube.com/results?search_query=${enc(compact([base, "score"]))}`,
+      access: "free",
+      category: "video",
+      notes: "Useful for score study while listening.",
       score: 0.95,
+      tags: ["score", "study"],
     },
     {
       title: "Accompaniment / rehearsal videos",
-      query: compact([base, "accompaniment rehearsal"]),
-      notes: "Practice-oriented tracks and rehearsal resources.",
-      score: 0.9,
+      subtitle: compact([base, "accompaniment rehearsal"]),
+      source: "YouTube",
+      url: `https://www.youtube.com/results?search_query=${enc(compact([base, "accompaniment rehearsal"]))}`,
+      access: "free",
+      category: "video",
+      notes: "Practice-oriented tracks and rehearsal help.",
+      score: 0.91,
+      tags: ["accompaniment", "practice"],
     },
   ];
-
-  return searches.map((item) => ({
-    title: item.title,
-    subtitle: item.query,
-    source: "YouTube",
-    url: `https://www.youtube.com/results?search_query=${enc(item.query)}`,
-    access: "free",
-    category: "video",
-    notes: item.notes,
-    score: item.score,
-  }));
 }
